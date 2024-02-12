@@ -1,0 +1,190 @@
+# ESPHome configuration file for Eufy Robovac 15C
+#
+# (c) 2024, Nicolas Pouillon, MIT license
+
+# Tuya protocol mapping:
+#   Datapoint 1: switch (value: ON)
+#    ?
+#   Datapoint 2: switch (value: OFF)
+#    Running
+#   Datapoint 3: enum (value: 0)
+#    Manual motion control
+#   Datapoint 5: enum (value: 4)
+#    Motion mode
+#   Datapoint 15: enum (value: 2)
+#    State
+#   Datapoint 101: switch (value: OFF)
+#    Return to dock command
+#   Datapoint 102: enum (value: 1)
+#    Fan speed
+#   Datapoint 103: switch (value: OFF)
+#    Locate command
+#   Datapoint 104: int value (value: 100)
+#    Battery
+#   Datapoint 106: enum (value: 0)
+#    Error
+
+esphome:
+  name: robovac-15c
+  friendly_name: Robovac 15C
+  name_add_mac_suffix: true
+
+esp8266:
+  board: esp01_1m
+
+api:
+
+ota:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_psk
+  fast_connect: true
+  ap:
+    ssid: Robovac-15c config
+    password: !secret wifi_ap_psk
+
+time:
+  - platform: sntp
+    id: sntp_time
+
+logger:
+  baud_rate: 0
+
+uart:
+  id: vacuum_uart
+  rx_pin: GPIO13
+  tx_pin: GPIO15
+  baud_rate: 115200
+  debug: null
+
+tuya:
+  id: vacuum_tuya
+  uart_id: vacuum_uart
+  time_id: sntp_time
+
+sensor:
+  - platform: tuya
+    id: battery
+    name: Battery
+    sensor_datapoint: 104
+    unit_of_measurement: "%"
+    icon: mdi:battery
+    device_class: battery
+    state_class: measurement
+
+select:
+  - platform: tuya
+    id: status
+    enum_datapoint: 15
+    icon: mdi:state-machine
+    options:
+      0: Running
+      1: Idle
+      2: Sleeping
+      3: Charging
+      4: Charged
+      5: Docking
+
+  - platform: tuya
+    id: motion
+    name: Motion mode
+    enum_datapoint: 5
+    icon: mdi:animation
+    options:
+      0: Auto
+      1: Quick
+      2: Spot
+      3: Edge
+      4: "Off"
+
+  - platform: tuya
+    id: fan
+    name: Fan speed
+    enum_datapoint: 102
+    icon: mdi:fan
+    options:
+      0: Standard
+      1: BoostIQ
+      2: Max
+      3: Idle
+
+  - platform: tuya
+    name: Error code
+    id: error
+    icon: mdi:robot-vacuum-alert
+    enum_datapoint: 106
+    options:
+       0: None
+       2: Front bumper stuck
+       3: Wheel stuck
+       4: Side brush
+       # Error codes after this line are untested.
+       5: Rolling brush bar stuck
+       6: Device trapped
+       7: Device trapped
+       8: Wheel suspended
+       9: Low battery
+       10: Magnetic boundary
+       13: Right wall sensor
+       14: Device tilted
+       15: Insert dust collector
+       18: Restricted area detected
+       19: Laser cover stuck
+       20: Laser sesor stuck
+       21: Laser sensor blocked
+       22: Base blocked
+
+button:
+  - platform: template
+    id: move_forward
+    name: Forward
+    icon: mdi:arrow-up-bold-circle
+    on_press:
+      - lambda: id(vacuum_tuya).force_set_enum_datapoint_value(3, 0);
+
+  - platform: template
+    id: move_backwards
+    name: Backwards
+    icon: mdi:arrow-down-bold-circle
+    on_press:
+      - lambda: id(vacuum_tuya).force_set_enum_datapoint_value(3, 1);
+
+  - platform: template
+    id: move_left
+    name: Left
+    icon: mdi:arrow-left-bold-circle
+    on_press:
+      - lambda: id(vacuum_tuya).force_set_enum_datapoint_value(3, 2);
+
+  - platform: template
+    id: move_right
+    name: Right
+    icon: mdi:arrow-right-bold-circle
+    on_press:
+      - lambda: id(vacuum_tuya).force_set_enum_datapoint_value(3, 3);
+
+switch:
+  - platform: tuya
+    id: locate
+    name: Locate
+    icon: mdi:map-marker
+    switch_datapoint: 103
+
+  - platform: tuya
+    id: dock
+    name: Return to dock
+    icon: mdi:home
+    switch_datapoint: 101
+
+  - platform: tuya
+    id: unknown_switch
+    name: Switch 1
+    switch_datapoint: 1
+    icon: mdi:crosshairs-question
+
+  - platform: tuya
+    id: running
+    name: Run
+    icon: mdi:robot-vacuum
+    switch_datapoint: 2
